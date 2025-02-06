@@ -16,6 +16,9 @@ class fileUploader:
     """
         Holds data for requests as well as methods to move files to
         neocities.
+
+        This will read in a file in the main directory 'nc_ignore.txt'
+        and avoid pushing anything listed in the file.
     """
     # URL for upload path
     up_url = r"https://neocities.org/api/upload"
@@ -42,12 +45,29 @@ class fileUploader:
         with open("auth.txt", 'r') as f:
             for lin in f:
                 if lin.split(":")[0] == "username":
-                    un = lin.split(":")[1]
+                    un = lin.split(":")[1].split("\n")[0]
                 elif lin.split(":")[0] == "password":
-                    pw = lin.split(":")[1]
+                    pw = lin.split(":")[1].split("\n")[0]
     else:
         un = input("Please input username:\t")
         pw = getpass("Please input password")
+
+    # Initialize ignore lists
+    ignore_file = []
+    ignore_folder = []
+    # Load ignore list
+    if os.path.isfile(os.path.join(path, "nc_ignore.txt")):
+        with open(os.path.join(path, "nc_ignore.txt"), 'r') as f:
+            for line in f:
+                l = line.split('\n')[0]
+                if os.path.isfile(l):
+                    ignore_file.append(os.path.join(path, l))
+                elif os.path.isdir(l):
+                    ignore_folder.append(os.path.join(path, l))
+                elif os.path.isfile(os.path.join(path, l)):
+                    ignore_file.append(os.path.join(path, l))
+                elif os.path.isdir(os.path.join(path, l)):
+                    ignore_folder.append(os.path.join(path, l))
 
     def set_path(self, p):
         """Set path"""
@@ -76,13 +96,19 @@ class fileUploader:
                 # dirpath: string for the path to the dir in current iteration
                 # dirnames: list of names of subdirectories in dirpath
                 # filenames: list of names of non-dir files in dirpath
+                if dirpath in self.ignore_folder:
+                    # This folder is ignored, do not push
+                    continue
                 for fi in filenames:
-                    file_list.append(
-                        # os.path.relpath(
+                    if (
+                        fi in self.ignore_file or
+                        os.path.join(dirpath, fi) in self.ignore_file
+                    ):
+                        continue
+                    else:
+                        file_list.append(
                             os.path.join(dirpath, fi)
-                            # , self.path
-                        # )
-                    )
+                        )
 
             # Filter out non-allowed file types
             lis2 = [
@@ -143,7 +169,7 @@ class fileUploader:
         self.res = res
         return
 
-    def uploadFiles(self):
+    def upload_files(self):
         """
         Take the files we read in and push them to Neocities
 
@@ -178,8 +204,8 @@ class fileUploader:
             print(output.text)
 
 
-
 if __name__ == "__main__":
     fu = fileUploader()
     fu.login()
     fu.read_folder()
+    fu.upload_files()
